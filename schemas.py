@@ -12,6 +12,7 @@ class Apartment(BaseModel):
     url: str
     phone_number: str | None = None
     description: str | None = None
+    owner: bool | None
 
     @field_validator('id')
     def id_must_be_int(cls, value):

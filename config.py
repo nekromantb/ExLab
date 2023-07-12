@@ -31,3 +31,4 @@ headers = {
     'sec-ch-ua-platform': '"Windows"',
 }
 num_for_output = 2
+room_count = [2]
