@@ -1,11 +1,11 @@
-from pydantic import BaseModel, field_validator, ValidationError
+from pydantic import ValidationError
 import requests
-import json
 from config import headers, cookies, num_for_output
 import os
 import time
-import asyncio
 from datetime import timedelta
+from schemas import Apartment
+import json
 
 
 def func_time_count(function):
@@ -22,40 +22,6 @@ def reload_func_3_times(function):
         pass
 
     return wrapped
-
-
-class Apartment(BaseModel):
-    id: str
-    created_at: str
-    latlon: str
-    photo: str | None = None
-    address: str
-    price_usd: str
-    price_byn: str
-    url: str
-    phone_number: str | None = None
-    description: str | None = None
-
-    @field_validator('id')
-    def id_must_be_int(cls, value):
-        for c in value:
-            if c not in "0123456789":
-                raise ValidationError("ID must be integer!")
-        return value
-
-    @field_validator('price_usd')
-    def price_usd_valid(cls, value):
-        for c in value:
-            if c not in "0123456789,.":
-                raise ValidationError("Price not valid!")
-        return value
-
-    @field_validator('price_byn')
-    def price_byn_valid(cls, value):
-        for c in value:
-            if c not in "0123456789,.":
-                raise ValidationError("Price not valid!")
-        return value
 
 
 @func_time_count
@@ -77,8 +43,11 @@ def get_data():
     session = requests.Session()
 
     response = session.get('https://r.onliner.by/sdapi/ak.api/search/apartments', params=params, cookies=cookies,
-                           headers=headers).json()
-    response_ap = response.get("apartments")
+                           headers=headers)
+    # if response.status_code == 200:
+    #     raise Exception
+    response_json = response.json()
+    response_ap = response_json.get("apartments")
     apart_list: list[Apartment] = []
     # print(response_ap)
     try:
@@ -94,15 +63,16 @@ def get_data():
                                   url=response_ap[apart_it].get("url"))
             if response_ap[apart_it].get("photo"):
                 apartment.photo = response_ap[apart_it].get("photo"),
+            if apartment.address == "":
+                apartment.address = response_ap[apart_it].get("location").get("user_address")
             apart_list.append(apartment)
     except ValidationError as e:
         print("Validation error raised!", e)
         return -1
 
     with open("data/1_data.json", "w") as file:
-        for apart in apart_list:
-            file.write(apart.model_dump_json(indent=4))
-            file.write("\n")
+        apart_list = [i.dict() for i in apart_list]
+        json.dump(apart_list, file, indent=4, ensure_ascii=False)
 
 def collector():
     get_data()
