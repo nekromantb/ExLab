@@ -4,6 +4,7 @@ bs4==0.0.1
 certifi==2023.5.7
 charset-normalizer==3.2.0
 idna==3.4
+lxml==4.9.3
 pydantic==2.0.2
 pydantic_core==2.1.2
 requests==2.31.0
