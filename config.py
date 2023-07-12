@@ -30,5 +30,4 @@ headers = {
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
 }
-num_for_output = 2
-room_count = [2]
+

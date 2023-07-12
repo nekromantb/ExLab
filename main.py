@@ -31,11 +31,11 @@
     To run the script make sure all the requirements are met and just run the script from the IDE
 """
 
-from collector import collector
+from tg_bot import tg_bot
 
 
 def main():
-    collector()
+    tg_bot()
 
 
 if __name__ == '__main__':

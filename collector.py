@@ -1,6 +1,6 @@
 from pydantic import ValidationError
 import requests
-from config import headers, cookies, num_for_output, room_count
+from config import headers, cookies
 import os
 import time
 from datetime import timedelta
@@ -25,15 +25,15 @@ def get_phone_and_description_info(ids: str):
     return [phone, description]
 
 
-def room_param(count: list[int]):
+def room_param(count: list[str]):
     """Generates a query parameter based on the number of rooms needed.
     Allows searching by multiple parameters at the same time"""
     output: list[str] = []
     for number in count:
-        if number == 1:
-            output.append(''.join([str(number), "_room"]))
+        if number == '1':
+            output.append(''.join([number, "_room"]))
         else:
-            output.append(''.join([str(number), "_rooms"]))
+            output.append(''.join([number, "_rooms"]))
     return output[0] if len(output) == 1 else output
 
 
@@ -65,13 +65,13 @@ def reload_func_3_times(function):
 
 @func_time_count
 @reload_func_3_times
-def get_data():
-    """Returns search results based on predefined values from config"""
+def get_data(output_quantity, room_quantity):
+    """Returns search results based on predefined values from input"""
     if not os.path.exists('data'):
         os.mkdir('data')
 
     params = {
-        'rent_type[]': room_param(room_count),
+        'rent_type[]': room_param(room_quantity),
         'order': 'created_at:desc',
         'page': '1',
         'bounds[lb][lat]': '53.67832826520648',
@@ -93,7 +93,7 @@ def get_data():
         response_ap = response_json.get("apartments")
         apart_list: list[Apartment] = []
         try:
-            for apart_it in range(num_for_output):
+            for apart_it in range(output_quantity):
                 apartment = Apartment(id=str(response_ap[apart_it].get("id")),
                                       address=response_ap[apart_it].get("location").get("address"),
                                       latlon=" ".join([str(response_ap[apart_it].get("location").get("latitude")),
@@ -121,7 +121,3 @@ def get_data():
     with open("data/1_data.json", "w") as file:
         apart_list = [i.dict() for i in apart_list]
         json.dump(apart_list, file, indent=4, ensure_ascii=False)
-
-
-def collector():
-    get_data()
