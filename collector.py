@@ -1,64 +1,108 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, ValidationError
 import requests
 import json
+from config import headers, cookies, num_for_output
+import os
+import time
+import asyncio
+from datetime import timedelta
 
 
-class session:
-    URL = "https://www.onliner.by/"
+def func_time_count(function):
+    def wrapped(*args):
+        start = time.perf_counter_ns()
+        res = function(*args)
+        print(timedelta(microseconds=(time.perf_counter_ns() - start)))
+        return res
+    return wrapped
 
-    def get_data(self):
-        cookies = {
-            '_ym_uid': '1688570509759619291',
-            '_ym_d': '1688570509',
-            'tmr_lvid': 'febc2c81179428fa0b0a283b6db8d2a0',
-            'tmr_lvidTS': '1688570509011',
-            'ouid': 'snyBEGSlpCA+IZlqCodiAg==',
-            '_gid': 'GA1.2.1951383258.1689062409',
-            '_ym_isad': '1',
-            'ADC_REQ_2E94AF76E7': 'BF6920F397BE9BF4BFF799CC821277D0D96E1F3816E6D35D0D441FADD2F5D6F0EEDB5DF12D4DA1A6',
-            'laravel_session': 'kTTuD5UtdaxFEo4xbLOjOmeTGa1LbJk8xwZb7UvO',
-            '_ga_KPSB9MHYED': 'GS1.1.1689062408.3.0.1689062427.41.0.0',
-            '_ga_NG54S9EFTD': 'GS1.1.1689062409.3.1.1689063810.60.0.0',
-            '_ga_64XDN24MMX': 'GS1.1.1689062428.2.1.1689063810.60.0.0',
-            '_ga': 'GA1.2.1655017757.1688570508',
-            '_gat_UA-340679-1': '1',
-            '_gat_UA-340679-53': '1',
-            '_gat_UA-340679-46': '1',
-        }
 
-        headers = {
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Connection': 'keep-alive',
-            'Referer': 'https://r.onliner.by/ak/?rent_type%5B%5D=2_rooms',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/114.0.0.0 Safari/537.36',
-            'sec-ch-ua': '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-        }
+def reload_func_3_times(function):
+    async def wrapped(*args):
+        pass
 
-        params = {
-            'rent_type[]': '2_rooms',
-            'order': 'created_at:desc',
-            'page': '1',
-            'bounds[lb][lat]': '53.67832826520648',
-            'bounds[lb][long]': '27.365152809086844',
-            'bounds[rt][lat]': '54.124908978529085',
-            'bounds[rt][long]': '27.759527091732025',
-            'v': '0.7943315165923253',
-        }
+    return wrapped
 
-        response = requests.get('https://r.onliner.by/sdapi/ak.api/search/apartments', params=params, cookies=cookies,
-                                headers=headers).json()
-        apartments = response.get("apartments")
-        with open("1_data.json", "w") as file:
-            json.dump(apartments, file, indent=4, ensure_ascii=False)
 
+class Apartment(BaseModel):
+    id: str
+    created_at: str
+    latlon: str
+    photo: str | None = None
+    address: str
+    price_usd: str
+    price_byn: str
+    url: str
+    phone_number: str | None = None
+    description: str | None = None
+
+    @field_validator('id')
+    def id_must_be_int(cls, value):
+        for c in value:
+            if c not in "0123456789":
+                raise ValidationError("ID must be integer!")
+        return value
+
+    @field_validator('price_usd')
+    def price_usd_valid(cls, value):
+        for c in value:
+            if c not in "0123456789,.":
+                raise ValidationError("Price not valid!")
+        return value
+
+    @field_validator('price_byn')
+    def price_byn_valid(cls, value):
+        for c in value:
+            if c not in "0123456789,.":
+                raise ValidationError("Price not valid!")
+        return value
+
+
+@func_time_count
+def get_data():
+    if not os.path.exists('data'):
+        os.mkdir('data')
+
+    params = {
+        'rent_type[]': '2_rooms',
+        'order': 'created_at:desc',
+        'page': '1',
+        'bounds[lb][lat]': '53.67832826520648',
+        'bounds[lb][long]': '27.365152809086844',
+        'bounds[rt][lat]': '54.124908978529085',
+        'bounds[rt][long]': '27.759527091732025',
+        'v': '0.7943315165923253',
+    }
+
+    session = requests.Session()
+
+    response = session.get('https://r.onliner.by/sdapi/ak.api/search/apartments', params=params, cookies=cookies,
+                           headers=headers).json()
+    response_ap = response.get("apartments")
+    apart_list: list[Apartment] = []
+    # print(response_ap)
+    try:
+        for apart_it in range(num_for_output):
+            apartment = Apartment(id=str(response_ap[apart_it].get("id")),
+                                  address=response_ap[apart_it].get("location").get("address"),
+                                  latlon=" ".join([str(response_ap[apart_it].get("location").get("latitude")),
+                                                   str(response_ap[apart_it].get("location").get("longitude"))]),
+                                  created_at=response_ap[apart_it].get("created_at"),
+                                  price_usd=str(response_ap[apart_it].get("price").get("amount")),
+                                  price_byn=str(response_ap[apart_it].get("price").get("converted").get("BYN").get(
+                                      "amount")),
+                                  url=response_ap[apart_it].get("url"))
+            if response_ap[apart_it].get("photo"):
+                apartment.photo = response_ap[apart_it].get("photo"),
+            apart_list.append(apartment)
+    except ValidationError as e:
+        print("Validation error raised!", e)
+        return -1
+
+    with open("data/1_data.json", "w") as file:
+        for apart in apart_list:
+            file.write(apart.model_dump_json(indent=4))
+            file.write("\n")
 
 def collector():
-    session_onliner = session()
-    session_onliner.get_data()
+    get_data()
