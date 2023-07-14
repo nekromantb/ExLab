@@ -3,7 +3,6 @@ import requests
 from config import headers, cookies
 import os
 import time
-from datetime import timedelta
 from schemas import Apartment
 import json
 from bs4 import BeautifulSoup
@@ -41,9 +40,9 @@ def func_time_count(function):
     """Computes the execution time of a function"""
 
     def wrapped(*args):
-        start = time.perf_counter_ns()
+        start = time.time()
         res = function(*args)
-        print(timedelta(microseconds=(time.perf_counter_ns() - start)))
+        print('Work time: {}'.format(' %1.1f seconds' % (time.time() - start)))
         return res
 
     return wrapped

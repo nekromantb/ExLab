@@ -2,3 +2,4 @@
 venv/
 *.log
 *.json
+auth_data.py
